@@ -3,6 +3,6 @@ This is the PyTorch implementation of our paper "GLoCNet:Robust Feature Matching
 
 A feature matching example of remote sensing images:
 
-![](https://github.com/yiqing18/GLoCNet/image.png)
+![](https://github.com/yiqing18/GLoCNet/blob/main/image.png)
 
 The source code is coming soon. Please wait patiently.
