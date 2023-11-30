@@ -32,7 +32,6 @@ The code is build on Pytorch 1.8 and cuda 11.1. Later version should also be com
 * You can download the hyperspectral datasets at: https://github.com/YingJiacheng/UHIF-RIM.
 
 ## Run GloCNet demos
-An example is given in `demo.py`.
 1. download the models at here:https://pan.baidu.com/s/1BQCP-MSu_zWlgmMmA61l0g 
 code：12a6
 2. run demo.py
