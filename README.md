@@ -33,8 +33,8 @@ The code is build on Pytorch 1.8 and cuda 11.1. Later version should also be com
 
 ## Run GloCNet demos
 An example is given in `demo.py`.
-1. download the models at here:链接：https://pan.baidu.com/s/1BQCP-MSu_zWlgmMmA61l0g 
-提取码：12a6
+1. download the models at here:https://pan.baidu.com/s/1BQCP-MSu_zWlgmMmA61l0g 
+code：12a6
 2. run demo.py
 
 
