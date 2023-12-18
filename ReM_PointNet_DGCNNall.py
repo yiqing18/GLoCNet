@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from Attention import AttentionalGNN
 import neighbor_descriptor as nd
+import numpy as np
 
 def MLP(in_channels:list, do_bn=True):
     n = len(in_channels)
@@ -160,26 +161,87 @@ class CrossScan(nn.Module):
         self.gnn = AttentionalGNN(self.config['embed_dim'], self.config['layer_names'])
     
 
-    def forward(self, kpts0, kpts1, Nei_sle, kl):
+    def forward(self, kpts0, kpts1, Nei_sle, kl, gt):
         point1 = kpts0[0].detach().cpu().numpy()
         point2 = kpts1[0].detach().cpu().numpy()
         Nei_index = Nei_sle.detach().cpu().numpy()
-        idx,NeiX,NeiY = nd.select_neighbor(point1,point2,Nei_index,kl)
+        idx,NeiX,NeiY, indexX = nd.select_neighbor(point1,point2,Nei_index,kl)
+
+        gt_X= gt[indexX]  
+
+        if self.training:
+            InDiNu = []    
+            inlier = []
+            for i in range(len(gt_X)):
+                inlier_number = torch.where(gt_X[i, 1:, 0])[0]
+                if len(inlier_number) == 0:
+                    continue
+                inlier.append(i)
+                InDiNu.append(len(inlier_number))
+            inlier_f = torch.tensor(inlier)
+            idx_new = idx[inlier_f]
+            gt_XX = gt_X[inlier_f]
+
+            axisNeiX, axisNeiY = torch.tensor(NeiX).cuda(), torch.tensor(NeiY).cuda()
+
+            Nei_gX = (axisNeiX[inlier_f, 1:] - axisNeiX[inlier_f, 0].unsqueeze(1))
+            Nei_gY = (axisNeiY[inlier_f, 1:] - axisNeiY[inlier_f, 0].unsqueeze(1))
+            Nei_ggX = torch.cat((Nei_gX, axisNeiX[inlier_f, 1:]), dim=-1)
+            Nei_ggY = torch.cat((Nei_gY, axisNeiY[inlier_f, 1:]), dim=-1)
+
+            NeiDesx = self.kenc1D(Nei_ggX.transpose(2,1))
+            NeiDesy = self.kenc1D(Nei_ggY.transpose(2,1))
+            Desx, Desy = self.gnn(NeiDesx, NeiDesy)  
+
+            euclidean_distance = F.pairwise_distance(Desx, Desy, keepdim=True)  
+            temp_ed = euclidean_distance.reshape(euclidean_distance.shape[0]*euclidean_distance.shape[2],-1) 
+            temp_gt = gt_XX[:,1:].reshape(euclidean_distance.shape[0]*euclidean_distance.shape[2],-1)
+
+            new_ed = temp_ed * temp_gt
+            outlier_number = torch.where(temp_gt==0)[0]
+            new_ed[outlier_number] = np.inf
+            new_euclidean_distance = new_ed.reshape(euclidean_distance.shape[0],euclidean_distance.shape[2])  
+            InDiMin = torch.min(new_euclidean_distance,dim=-1)[0]
 
 
-        axisNeiX, axisNeiY = torch.tensor(NeiX).cuda(), torch.tensor(NeiY).cuda()
-        Nei_gX = (axisNeiX[:, 1:] - axisNeiX[:, 0].unsqueeze(1))
-        Nei_gY = (axisNeiY[:, 1:] - axisNeiY[:, 0].unsqueeze(1))
-        Nei_ggX = torch.cat((Nei_gX, axisNeiX[:, 1:]), dim=-1)
-        Nei_ggY = torch.cat((Nei_gY, axisNeiY[:, 1:]), dim=-1)
-        NeiDesx = self.kenc1D(Nei_ggX.transpose(2, 1))
-        NeiDesy = self.kenc1D(Nei_ggY.transpose(2, 1))
-        Desx, Desy = self.gnn(NeiDesx, NeiDesy)  
+            return InDiMin,idx_new, torch.tensor(InDiNu).cuda()
+        else:
 
-        euclidean_distance = F.pairwise_distance(Desx, Desy, keepdim=True) 
-        Dis1 = torch.min(euclidean_distance, dim=-1)[0]
-        DisSum = Dis1
-        return DisSum,idx
+            axisNeiX, axisNeiY = torch.tensor(NeiX).cuda(), torch.tensor(NeiY).cuda()
+            Nei_gX = (axisNeiX[:, 1:] - axisNeiX[:, 0].unsqueeze(1))
+            Nei_gY = (axisNeiY[:, 1:] - axisNeiY[:, 0].unsqueeze(1))
+            Nei_ggX = torch.cat((Nei_gX, axisNeiX[:, 1:]), dim=-1)
+            Nei_ggY = torch.cat((Nei_gY, axisNeiY[:, 1:]), dim=-1)
+            NeiDesx = self.kenc1D(Nei_ggX.transpose(2, 1))
+            NeiDesy = self.kenc1D(Nei_ggY.transpose(2, 1))
+            Desx, Desy = self.gnn(NeiDesx, NeiDesy)  
+
+            euclidean_distance = F.pairwise_distance(Desx, Desy, keepdim=True) 
+            Dis1 = torch.min(euclidean_distance, dim=-1)[0]
+            DisSum = Dis1
+            return DisSum,idx
+    
+class Stage1_loss(nn.Module):
+    def __init__(self):
+        super(Stage1_loss, self).__init__()
+        self.critiation = nn.CrossEntropyLoss()
+        self.critiation1 = nn.BCELoss()
+
+    def forward(self, pred, label):
+        gold = label.contiguous().view(-1).long()
+        loss = self.critiation(pred, gold)
+        return loss
+
+class Stage2_loss(nn.Module):
+    def __init__(self, margin=5):
+        super(Stage2_loss, self).__init__()
+        self.margin = margin
+
+    def forward(self, euclidean_distance, label,m_auxi):
+
+        loss_contrasive = torch.mean((label) * torch.pow(euclidean_distance, 2) +
+                                     (1 - label) * torch.pow(torch.clamp(self.margin/m_auxi - euclidean_distance, min=0.0), 2))
+        return loss_contrasive
 
 
 

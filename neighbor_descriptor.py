@@ -34,55 +34,14 @@ def axis_transform(x):
 
     return new_xc
 
-def select_neighbor(p1_raw, p2_raw,selec_index,k):
-    K0 = k
-    K1 = k
-    K2 = k
+def select_neighbor(p1_raw, p2_raw,selec_index,K2):
     point1 = p1_raw[selec_index]
     point2 = p2_raw[selec_index]
-    #round1
-    tree1 = KDTree(point1)
-    tree2 = KDTree(point2)
-    Neighbor_X = tree1.query(point1, k = K0)
-    Neighbor_Y = tree2.query(point2, k = K0)
-    bb = np.append(Neighbor_X[1], Neighbor_Y[1], axis = 1)
-    sort_bb = np.diff(np.sort(bb),axis=1)
-    dd = (sort_bb == (np.zeros(sort_bb.shape))).astype(float)
-    count_both_point = np.sum(dd, axis=1,keepdims=True) - 1
-    pp_inlier = count_both_point / K0
-    idx = np.where(pp_inlier>0.1)[0]
-
-    #round2
-    tree1 = KDTree(point1[idx])
-    tree2 = KDTree(point2[idx])
-    Neighbor_X = tree1.query(point1, k=K1)
-    Neighbor_Y = tree2.query(point2, k=K1)
-    Neighbor_X = idx[Neighbor_X[1]]
-    Neighbor_Y = idx[Neighbor_Y[1]]
-    bb = np.append(Neighbor_X, Neighbor_Y, axis=1)
-    sort_bb = np.diff(np.sort(bb), axis=1)
-    dd = (sort_bb == (np.zeros(sort_bb.shape))).astype(float)
-    count_both_point = np.sum(dd, axis=1, keepdims=True) - 1
-    pp_inlier = count_both_point / K0
-    idx = np.where(pp_inlier > 0.3)[0]
-
-    #round3
-    tree1 = KDTree(point1[idx])
-    tree2 = KDTree(point2[idx])
-    Neighbor_X0 = tree1.query(point1, k=K2)
-    Neighbor_Y0 = tree2.query(point2, k=K2)
-    Neighbor_X = idx[Neighbor_X0[1]]
-    Neighbor_Y = idx[Neighbor_Y0[1]]
-    bb = np.append(Neighbor_X, Neighbor_Y, axis=1)
-    sort_bb = np.diff(np.sort(bb), axis=1)
-    dd = (sort_bb == (np.zeros(sort_bb.shape))).astype(float)
-    count_both_point = np.sum(dd, axis=1, keepdims=True) - 1
-    pp_inlier = count_both_point / K0
-    idx = np.where(pp_inlier > 0.5)[0]
-    raw_idx = selec_index[idx]
 
     tree1 = KDTree(point1)  
     tree2 = KDTree(point2)
+    if len(p1_raw)<K2:
+        K2 = len(p1_raw)
     Neighbor_X0 = tree1.query(p1_raw, k=K2)  
     Neighbor_Y0 = tree2.query(p2_raw, k=K2)
     Neighbor_X = selec_index[Neighbor_X0[1]]  
@@ -91,7 +50,7 @@ def select_neighbor(p1_raw, p2_raw,selec_index,k):
     sort_bb = np.diff(np.sort(bb), axis=1)
     dd = (sort_bb == (np.zeros(sort_bb.shape))).astype(float)
     count_both_point = np.sum(dd, axis=1, keepdims=True) - 1
-    pp_inlier = count_both_point / K0
+    pp_inlier = count_both_point / K2
     iii = np.where(pp_inlier > 0)[0]
 
     Neighbor_X0 = tree1.query(p1_raw[iii], k=K2)
@@ -101,4 +60,4 @@ def select_neighbor(p1_raw, p2_raw,selec_index,k):
     NeiX = axis_transform(p1_raw[Neighbor_X])
     NeiY = axis_transform(p2_raw[Neighbor_X])
 
-    return iii, NeiX, NeiY
+    return iii, NeiX, NeiY, Neighbor_X

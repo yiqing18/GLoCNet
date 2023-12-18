@@ -1,9 +1,9 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] ='4'
+os.environ["CUDA_VISIBLE_DEVICES"] =''
 import torch
 from torch.utils.data import DataLoader
 import ReM_PointNet_DGCNNall as RM
-from ReM_Pointdataset import test_data_plot
+from ReM_Pointdataset import test_data_preprocess
 import scipy.io as scio
 import numpy as np
 
@@ -15,7 +15,7 @@ config = {
     'k':18,
 }
 
-test_data_path = './EXP/1.mat'
+test_data_path = './EXP/test/1.mat'
 
 
 ## load model
@@ -54,10 +54,11 @@ def Test(test_img,kl):
     bs = len(point1)
     gt = test_img['GroundTruth']
 
-    test_data = test_data_plot(test_img, gt)
+    test_data = test_data_preprocess(test_img, gt)
     test_dataloader = DataLoader(test_data, shuffle=False, batch_size=bs)
     for data in test_dataloader:
         data_config = {key: data[key].to(device) for key in data}
+        match = data_config['matches']
         output1 = net1.forward(data_config)
 
         pred_coarse_re = output1.argmax(dim=1)
@@ -68,7 +69,7 @@ def Test(test_img,kl):
         p2 = data_config['kp2'].to(torch.float32)
 
         # similarity
-        output, selected_index2 = net2.forward(p1, p2, selected_index,kl)
+        output, selected_index2 = net2.forward(p1, p2, selected_index,kl,match[0])
 
         threshold = (torch.max(output)-torch.min(output))*thre_ratio+torch.min(output)
         out_selec_index = torch.where(output<threshold)[0].detach().cpu().numpy()
@@ -81,14 +82,16 @@ def Test(test_img,kl):
         return final_result, gt
 
 if __name__=='__main__':
-    c = 6
+    kl = 6
+
     test_img = scio.loadmat(test_data_path)
 
-    output,gt = Test(test_img, c)
+    output,gt = Test(test_img, kl)
 
     OurIndex = np.where(output==1)[0]
     CorrectIndex = np.where(gt == 1)[0]
     P, R, F1 = evaluateRPF(CorrectIndex, OurIndex,output.shape[0])
+
 
     print('Precision:{}, Recall:{}, F1:{}'.format(P,R,F1))
 
