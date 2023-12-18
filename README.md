@@ -31,6 +31,10 @@ The code is build on Pytorch 1.8 and cuda 11.1. Later version should also be com
 * You can download the MRSID datasets at: https://github.com/LJY-RS/RIFT-multimodal-image-matching.
 * You can download the hyperspectral datasets at: https://github.com/YingJiacheng/UHIF-RIM.
 
+## Training
+1. You can use the dataset above or your own dataset by placing them in the 'EXP/train' folder. (A single image is used for training, and a randomly generated transformation matrix (affine/perspective) is used to obtain the putative correspondences)
+2. run train.py
+
 ## Run GloCNet demos
 1. download the models at here:https://pan.baidu.com/s/1BQCP-MSu_zWlgmMmA61l0g 
 code：12a6
