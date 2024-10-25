@@ -24,7 +24,7 @@ test_data_path = './EXP/test'
 ## net
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net1 = RM.DGCNN(config).to(device)
-# net1.load_state_dict(torch.load('./model/ReM_pointu.pkl'),strict=False)
+net1.load_state_dict(torch.load('./model/ReM_pointu.pkl'),strict=False)
 net2 = RM.CrossScan(config).to(device)
 
 
@@ -39,7 +39,7 @@ writer = SummaryWriter('./logs_tensforboard')
 batch = 1
 
 ## dataloader
-train_data = train_data_preprocess(train_img_path, nfeatures=5000)
+train_data = train_data_preprocess(train_img_path, nfeatures=1000)
 train_dataloader = DataLoader(train_data, batch_size=batch, shuffle=True)
 train_curve = list()
 train_acc = list()
